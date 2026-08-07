@@ -1,66 +1,25 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-const events = [
-  {
-    title: "even 1",
-    date: "2026-01-01",
-    time: "6:00 – 7:30 PM",
-    location: "Design & Innovation Building, UCSD",
-    description:
-      "Get paired with teams and learn the clinical need-finding framework we use to start every sprint.",
-    tag: "Workshop",
-  },
-  {
-    title: "event 2",
-    date: "2026-01-09",
-    time: "5:30 – 8:00 PM",
-    location: "The Basement Makerspace",
-    description:
-      "Hands-on build night with fabrication mentors covering low-fidelity prototyping and quick validation.",
-    tag: "Build",
-  },
-  {
-    title: "event 3",
-    date: "2026-01-14",
-    time: "4:00 – 6:00 PM",
-    location: "Health Sciences Education Center",
-    description:
-      "1:1 time with physicians and founders to stress-test your problem statement and solution scope.",
-    tag: "Mentorship",
-  },
-  {
-    title: "event 4",
-    date: "2026-01-22",
-    time: "6:30 – 8:00 PM",
-    location: "Zoom + In-person hybrid",
-    description:
-      "Former HealthLink teams walk through FDA pathways, clinical trials, and how they navigated them.",
-    tag: "Seminar",
-  },
-  {
-    title: "event 5",
-    date: "2026-01-30",
-    time: "5:00 – 7:00 PM",
-    location: "Price Center East Ballroom",
-    description:
-      "Tighten your story with pitch coaches and live feedback ahead of the end-of-month showcase.",
-    tag: "Pitch",
-  },
-];
-
-const parseDate = (dateString: string) => {
-  const [year, month, day] = dateString.split("-").map(Number);
-  return new Date(year, month - 1, day);
+type Event = {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  checkinOpensAt: string | null;
+  checkinClosesAt: string | null;
 };
+
+const PACIFIC_TZ = "America/Los_Angeles";
 
 const formatDateLabel = (dateString: string) =>
   new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
-  }).format(parseDate(dateString));
+    timeZone: PACIFIC_TZ,
+  }).format(new Date(dateString));
 
 type CalendarDay = {
   label: number | null;
@@ -96,11 +55,45 @@ const buildCalendarDays = (
   });
 };
 
-const UpcomingCalendar = () => {
+type CalendarEvent = Event & { dateKey: string; startDate: Date | null; endDate: Date | null; timeLabel?: string };
+
+const toPacificDateKey = (dateInput: string | Date | null) => {
+  if (!dateInput) return null;
+  const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+  if (Number.isNaN(date.getTime())) return null;
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: PACIFIC_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const lookup = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return `${lookup.year}-${lookup.month}-${lookup.day}`;
+};
+
+const formatPacificTimeRange = (start: Date | null, end: Date | null) => {
+  if (!start) return "";
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: PACIFIC_TZ,
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const startLabel = fmt.format(start);
+  const endLabel = end ? fmt.format(end) : null;
+  return endLabel ? `${startLabel} – ${endLabel}` : startLabel;
+};
+
+const UpcomingCalendar = ({ eventsData }: { eventsData: CalendarEvent[] }) => {
   const [viewDate, setViewDate] = useState(() => {
-    if (events.length === 0) return new Date();
+    if (eventsData.length === 0) return new Date();
     const earliest = new Date(
-      Math.min(...events.map((event) => parseDate(event.date).getTime())),
+      Math.min(
+        ...eventsData.map((event) =>
+          (event.startDate ?? new Date(`${event.dateKey}T00:00:00`)).getTime(),
+        ),
+      ),
     );
     return new Date(earliest.getFullYear(), earliest.getMonth(), 1);
   });
@@ -111,11 +104,11 @@ const UpcomingCalendar = () => {
 
   const viewYear = viewDate.getFullYear();
   const viewMonth = viewDate.getMonth();
-  const eventDates = new Set(events.map((event) => event.date));
-  const eventsByDate = events.reduce<Record<string, typeof events[number][]>>(
+  const eventDates = new Set(eventsData.map((event) => event.dateKey));
+  const eventsByDate = eventsData.reduce<Record<string, CalendarEvent[]>>(
     (acc, event) => {
-      acc[event.date] = acc[event.date] || [];
-      acc[event.date].push(event);
+      acc[event.dateKey] = acc[event.dateKey] || [];
+      acc[event.dateKey].push(event);
       return acc;
     },
     {},
@@ -124,6 +117,7 @@ const UpcomingCalendar = () => {
   const monthLabel = new Intl.DateTimeFormat("en-US", {
     month: "long",
     year: "numeric",
+    timeZone: PACIFIC_TZ,
   }).format(viewDate);
 
   return (
@@ -184,9 +178,9 @@ const UpcomingCalendar = () => {
             {day.dateKey &&
               (eventsByDate[day.dateKey]?.length ?? 0) > 0 &&
               eventsByDate[day.dateKey].map((ev) => (
-                <div key={ev.title} className="mt-2 text-xs text-blue-100 space-y-1">
+                <div key={ev.id} className="mt-2 text-xs text-blue-100 space-y-1">
                   <p className="font-semibold leading-tight">{ev.title}</p>
-                  <p className="text-[11px] text-neutral-200">{ev.time}</p>
+                  <p className="text-[11px] text-neutral-200">{ev.timeLabel || ""}</p>
                 </div>
               ))}
           </div>
@@ -198,10 +192,81 @@ const UpcomingCalendar = () => {
 };
 
 export default function EventsPage() {
-  const sortedEvents = [...events].sort(
-    (a, b) => parseDate(a.date).getTime() - parseDate(b.date).getTime(),
-  );
-  const nextEvent = sortedEvents[0];
+  const [events, setEvents] = useState<Event[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/events/all");
+        if (!res.ok) throw new Error("Failed to load events");
+        const data = (await res.json()) as Event[];
+        setEvents(data);
+        setError(null);
+      } catch (err) {
+        setError((err as Error).message);
+        setEvents([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, []);
+
+  const enriched = useMemo(() => {
+    return events
+      .map((ev) => {
+        const start = ev.checkinOpensAt ? new Date(ev.checkinOpensAt) : null;
+        const end = ev.checkinClosesAt ? new Date(ev.checkinClosesAt) : null;
+        const dateKey = toPacificDateKey(ev.checkinOpensAt ?? ev.checkinClosesAt);
+        const timeLabel = formatPacificTimeRange(start, end);
+
+        return { ...ev, dateKey, startDate: start, endDate: end, timeLabel };
+      })
+      .filter((ev) => ev.dateKey);
+  }, [events]);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const upcoming = enriched.filter((ev) => {
+    const close = ev.checkinClosesAt ? new Date(ev.checkinClosesAt) : null;
+    const open = ev.checkinOpensAt ? new Date(ev.checkinOpensAt) : null;
+    return (close && close >= today) || (open && open >= today);
+  });
+
+  const sortedUpcoming = [...upcoming].sort((a, b) => {
+    const aTime = a.checkinOpensAt ? new Date(a.checkinOpensAt).getTime() : 0;
+    const bTime = b.checkinOpensAt ? new Date(b.checkinOpensAt).getTime() : 0;
+    return aTime - bTime;
+  });
+
+  const fallbackSorted = [...enriched].sort((a, b) => {
+    const aTime = a.checkinOpensAt ? new Date(a.checkinOpensAt).getTime() : 0;
+    const bTime = b.checkinOpensAt ? new Date(b.checkinOpensAt).getTime() : 0;
+    return aTime - bTime;
+  });
+
+  const displayEvents = sortedUpcoming.length ? sortedUpcoming : fallbackSorted;
+  const nextEvent = sortedUpcoming[0] ?? null;
+  const calendarEvents: CalendarEvent[] = (sortedUpcoming.length ? sortedUpcoming : fallbackSorted)
+    .filter((ev) => Boolean(ev.dateKey))
+    .map((ev) => ({
+      ...ev,
+      timeLabel: ev.timeLabel ?? "",
+      dateKey: ev.dateKey ?? "",
+    }));
+
+  const nextEventDateLabel =
+    nextEvent?.startDate
+      ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: PACIFIC_TZ }).format(
+          nextEvent.startDate,
+        )
+      : nextEvent?.dateKey
+        ? formatDateLabel(nextEvent.dateKey)
+        : "";
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#071225] via-[#0a1b35] to-[#102647] text-white">
@@ -212,26 +277,23 @@ export default function EventsPage() {
       >
         <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
         <div className="relative z-10 max-w-4xl mx-auto space-y-4">
-          <p className="text-l uppercase tracking-[0.35em] text-blue-200">
-            Events & Workshops
-          </p>
           <h1 className="text-5xl font-extrabold leading-tight">
-            Build together every week.
+            Events & Workshops
           </h1>
-          <p className="text-lg text-neutral-200">
-            Curated programming that moves student teams from idea to demo-ready
-            prototypes with mentorship baked in.
+          <p className="text-base uppercase tracking-[0.25em] text-blue-300">
+            Build together every week
           </p>
-          <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button className="px-6 py-3 rounded-full bg-blue-500 text-white font-semibold shadow-lg shadow-blue-900/50 hover:scale-[1.02] transition">
-              RSVP for the next event
-            </button>
-            <div className="px-4 py-3 rounded-full bg-white/10 border border-white/10 text-sm text-neutral-200">
-              Next up: {nextEvent.title} • {formatDateLabel(nextEvent.date)} at{" "}
-              {nextEvent.time}
+              <div className="mt-6 flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <button className="px-6 py-3 rounded-full bg-blue-500 text-white font-semibold shadow-lg shadow-blue-900/50 hover:scale-[1.02] transition">
+                  RSVP for the next event
+                </button>
+                <div className="px-4 py-3 rounded-full bg-white/10 border border-white/10 text-sm text-neutral-200">
+                  {nextEvent
+                    ? `Next up: ${nextEvent.title} • ${nextEventDateLabel}${nextEvent.timeLabel ? ` at ${nextEvent.timeLabel}` : ""}`
+                    : "No upcoming events"}
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
       </section>
 
       {/* UPCOMING EVENTS */}
@@ -243,58 +305,67 @@ export default function EventsPage() {
             </p>
             <h2 className="text-4xl font-extrabold">Upcoming Events</h2>
             <p className="text-neutral-300 max-w-2xl">
-              Show up to any session—even if you&apos;re early in your idea. Each
-              event stacks skills so you can progress.
+              Join us for weekly events and workshops designed to help you build, learn, and connect with the HealthLink community
             </p>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          {sortedEvents.map((event) => (
-            <div
-              key={event.title}
-              className="rounded-3xl border border-blue-500/40 bg-neutral-900/50 p-6 shadow-xl shadow-blue-900/30 flex flex-col gap-4"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-500/25 border border-blue-400/40 flex flex-col items-center justify-center">
-                    <span className="text-xs text-blue-100">
-                      {new Intl.DateTimeFormat("en-US", {
-                        month: "short",
-                      }).format(parseDate(event.date))}
-                    </span>
-                    <span className="text-xl font-extrabold text-white">
-                      {parseDate(event.date).getDate()}
+        {loading ? (
+          <p className="text-neutral-300">Loading events...</p>
+        ) : error ? (
+          <p className="text-red-400">{error}</p>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-8">
+            {displayEvents.map((event) => {
+              const displayDate = event.startDate ?? new Date(`${event.dateKey}T00:00:00`);
+              return (
+                <div
+                  key={event.id}
+                  className="rounded-3xl border border-blue-500/40 bg-neutral-900/50 p-6 shadow-xl shadow-blue-900/30 flex flex-col gap-4"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-500/25 border border-blue-400/40 flex flex-col items-center justify-center">
+                        <span className="text-xs text-blue-100">
+                          {new Intl.DateTimeFormat("en-US", {
+                            month: "short",
+                            timeZone: PACIFIC_TZ,
+                          }).format(displayDate)}
+                        </span>
+                        <span className="text-xl font-extrabold text-white">
+                          {new Intl.DateTimeFormat("en-US", {
+                            day: "numeric",
+                            timeZone: PACIFIC_TZ,
+                          }).format(displayDate)}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.25em] text-blue-200">
+                          {"Event"}
+                        </p>
+                        <h3 className="text-2xl font-bold leading-tight">
+                          {event.title}
+                        </h3>
+                      </div>
+                    </div>
+                    <span className="px-3 py-1 rounded-full bg-white/10 text-sm text-neutral-200 border border-white/10">
+                      {event.timeLabel || "TBD"}
                     </span>
                   </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.25em] text-blue-200">
-                      {event.tag}
-                    </p>
-                    <h3 className="text-2xl font-bold leading-tight">
-                      {event.title}
-                    </h3>
+                  <p className="text-neutral-200">{event.description || "Details coming soon."}</p>
+                  <div className="flex items-center justify-between text-sm text-neutral-300">
+                    <span>{event.location || "Location TBA"}</span>
                   </div>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-white/10 text-sm text-neutral-200 border border-white/10">
-                  {event.time}
-                </span>
-              </div>
-              <p className="text-neutral-200">{event.description}</p>
-              <div className="flex items-center justify-between text-sm text-neutral-300">
-                <span>{event.location}</span>
-                <button className="text-blue-200 hover:text-white transition underline underline-offset-4">
-                  Add to calendar
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {/* CALENDAR */}
       <section className="py-16 px-6 max-w-6xl mx-auto">
-        <UpcomingCalendar />
+        <UpcomingCalendar eventsData={calendarEvents} />
       </section>
     </main>
   );

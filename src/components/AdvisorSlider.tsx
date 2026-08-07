@@ -12,13 +12,13 @@ const advisors = [
   { name: "Alan Moazzam, MD", title: "Hospitalist at UCSD Medicine", image: "/advisors/alan.jpeg" },
   { name: "Jacques Chirazi", title: "Director of Student Entrepreneurship at UCSD", image: "/advisors/jacques.png" },
   { name: "Murray Reicher, MD", title: "Former CMO of IBM & Serial Entrepreneur", image: "/advisors/murray.jpeg" },
-  { name: "Ravi Kumar", title: "MS3 UC, San Diego School of Medicine", image: "/advisors/Ravi.webp" },
-  { name: "Noah C. Golestani", title: "MS2, UC San Diego School of Medicine", image: "/advisors/Noah.webp" },
-  { name: "Ryan Sindewald", title: "MS2 UC, San Diego School of Medicine", image: "/advisors/Ryan.png" },
-  { name: "Zina Patel", title: "Harvard Business School 2+2 Candidate & UCSD alum", image: "/advisors/Zina.jpeg" },
-  { name: "Asish Koruprolu", title: "Ph.D Candidate, Electrical Engineering at UCSD", image: "/advisors/Asish.png" },
-  { name: "Arshan Ommid", title: "CEO of Dermose & MS Candidate at UCSD", image: "/advisors/Arshan.jpeg" },
-  { name: "Kevin Jubbal, MD", title: "CEO of MedSchoolInsiders & Physician Entrepeneur", image: "/advisors/Kevin.png" },
+  { name: "Ravi Kumar", title: "MS3 UC, San Diego School of Medicine", image: "/advisors/ravi.webp" },
+  { name: "Noah C. Golestani", title: "MS2, UC San Diego School of Medicine", image: "/advisors/noah.webp" },
+  { name: "Ryan Sindewald", title: "MS2 UC, San Diego School of Medicine", image: "/advisors/ryan.png" },
+  { name: "Zina Patel", title: "Harvard Business School 2+2 Candidate & UCSD alum", image: "/advisors/zina.jpeg" },
+  { name: "Asish Koruprolu", title: "Ph.D Candidate, Electrical Engineering at UCSD", image: "/advisors/asish.png" },
+  { name: "Arshan Ommid", title: "CEO of Dermose & MS Candidate at UCSD", image: "/advisors/arshan.jpeg" },
+  { name: "Kevin Jubbal, MD", title: "CEO of MedSchoolInsiders & Physician Entrepeneur", image: "/advisors/kevin.png" },
 ];
 
 const slides = [
